@@ -1,6 +1,8 @@
 ﻿using System;
+using System.ComponentModel;
 using System.Net.Sockets;
 using System.Text;
+using System.Windows.Forms;
 
 namespace Utilities
 {
@@ -44,5 +46,48 @@ namespace Utilities
 
             stream.Write(data, 0, data.Length);
         }
+    }
+
+    public static class MessageHandlerAsync
+    {
+
+        private static NetworkStream stream;
+        private static Action<string> onCompletionMethod;
+
+        public static void SendMessage(NetworkStream stream, string message)
+        {
+            MessageHandlerAsync.stream = stream;
+            BackgroundWorker worker = new BackgroundWorker();
+            worker.DoWork += SendMessage;
+            worker.RunWorkerAsync(message);
+        }
+
+        private static void SendMessage(object sender, DoWorkEventArgs e)
+        {
+            string message = (string)e.Argument;
+            MessageHandler.SendMessage(MessageHandlerAsync.stream, message);
+        }
+
+        public static void GetMessage(NetworkStream stream, Action<string> method)
+        {
+            MessageHandlerAsync.stream = stream;
+            MessageHandlerAsync.onCompletionMethod = method;
+            BackgroundWorker worker = new BackgroundWorker();
+            worker.DoWork += GetMessage;
+            worker.RunWorkerCompleted += OnGetMessageCompletion;
+            worker.RunWorkerAsync();
+        }
+
+        private static void GetMessage(object sender, DoWorkEventArgs e)
+        {
+            e.Result = MessageHandler.GetMessage(MessageHandlerAsync.stream);
+        }
+
+        private static void OnGetMessageCompletion(object sender, RunWorkerCompletedEventArgs e)
+        {
+            string message = (string) e.Result;
+            onCompletionMethod(message);
+        }
+
     }
 }
